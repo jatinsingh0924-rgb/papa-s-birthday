@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy Birthday Papa</title>
+
+<style>
+/* basic reset */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+    background: linear-gradient(to right, #ff9a9e, #fad0c4);
+    text-align: center;
+}
+
+/* main screen */
+#main {
+    position: relative;
+    top: 10vh;
+}
+
+h1 {
+    font-size: 40px;
+    color: #fff;
+    text-shadow: 2px 2px 5px #000;
+    animation: fadeIn 2s ease-in;
+}
+
+p {
+    font-size: 20px;
+    color: #fff;
+    margin: 20px auto;
+    max-width: 90%;
+    animation: fadeIn 2s ease-in 0.5s;
+}
+
+button {
+    padding: 12px 25px;
+    font-size: 18px;
+    border: none;
+    border-radius: 25px;
+    background: #ff4081;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+    animation: fadeIn 2s ease-in 1s;
+}
+
+button:hover {
+    background: #e91e63;
+}
+
+/* celebration screen */
+#celebration {
+    display: none;
+    position: relative;
+    top: 5vh;
+    color: #fff;
+    animation: fadeIn 1.5s ease-in;
+}
+
+.cake {
+    font-size: 120px;
+    margin-top: 30px;
+}
+
+/* floating hearts */
+.heart {
+    position: absolute;
+    font-size: 25px;
+    animation: float 6s linear infinite;
+}
+
+@keyframes float {
+    0% {
+        bottom: -20px;
+        opacity: 1;
+    }
+    100% {
+        bottom: 100%;
+        opacity: 0;
+        transform: translateX(100px);
+    }
+}
+
+/* simple fade-in */
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* canvas covers the full screen for fireworks */
+#fireworksCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none; /* so clicks go through */
+    z-index: 999;
+}
+</style>
+</head>
+<body>
+
+<!-- Main Screen -->
+<div id="main">
+    <h1>🎉 Happiest Birthday Papa 🎉</h1>
+
+    <p>
+        Papa, aap meri duniya ho ❤️<br>
+        Aapki wajah se hi meri zindagi itni khoobsurat hai 🌸<br>
+        Bhagwan aapko hamesha khush rakhe 🙏
+    </p>
+
+    <button onclick="startCelebration()">🎁 Click for More 🎁</button>
+</div>
+
+<!-- Celebration Screen -->
+<div id="celebration">
+    <h1>🎂 Happy Birthday Papa 🎂</h1>
+
+    <div class="cake">🎂</div>
+
+    <p>
+        Aap mere hero ho 💪<br>
+        Main hamesha aapse bahut pyaar karta hoon ❤️
+    </p>
+
+    <audio id="song" loop>
+        <source src="https://www2.cs.uic.edu/~i101/SoundFiles/HappyBirthday.wav" type="audio/wav">
+    </audio>
+</div>
+
+<!-- Canvas for fireworks -->
+<canvas id="fireworksCanvas"></canvas>
+
+<script>
+/* ---------- celebration flow ---------- */
+function startCelebration() {
+    document.getElementById("main").style.display = "none";
+    document.getElementById("celebration").style.display = "block";
+    document.getElementById("song").play();
+
+    createHearts();
+    initFireworks();   // start fireworks system
+}
+
+/* ---------- floating hearts ---------- */
+function createHearts() {
+    setInterval(() => {
+        let heart = document.createElement("div");
+        heart.className = "heart";
+        heart.innerHTML = "❤️";
+
+        heart.style.left = Math.random() * 100 + "vw";
+        heart.style.animationDuration = (3 + Math.random() * 3) + "s";
+
+        document.body.appendChild(heart);
+
+        setTimeout(() => {
+            heart.remove();
+        }, 6000);
+    }, 300);
+}
+
+/* ---------- fireworks on canvas ---------- */
+const canvas = document.getElementById('fireworksCanvas');
+const ctx = canvas.getContext('2d');
+let cw, ch;
+let fireworks = [];
+let particles = [];
+
+function resizeCanvas() {
+    cw = canvas.width = window.innerWidth;
+    ch = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/* Firework constructor */
+class Firework {
+    constructor(sx, sy, tx, ty) {
+        this.x = sx;
+        this.y = sy;
+        this.sx = sx;
+        this.sy = sy;
+        this.tx = tx;
+        this.ty = ty;
+        this.distanceToTarget = Math.hypot(tx - sx, ty - sy);
+        this.distanceTraveled = 0;
+        this.coordinates = [];
+        this.coordinateCount = 3;
+        while (this.coordinateCount--) {
+            this.coordinates.push([this.x, this.y]);
+        }
+        this.angle = Math.atan2(ty - sy, tx - sx);
+        this.speed = 5;      // base speed
+        this.acceleration = 1.05;
+        this.brightness = Math.random() * 30 + 50; // 50-80
+    }
+    update(index) {
+        this.coordinates.pop();
+        this.coordinates.unshift([this.x, this.y]);
+
+        // accelerate
+        this.speed *= this.acceleration;
+
+        // move
+        let vx = Math.cos(this.angle) * this.speed;
+        let vy = Math.sin(this.angle) * this.speed;
+        this.distanceTraveled = Math.hypot(this.x + vx - this.sx, this.y + vy - this.sy);
+
+        if (this.distanceTraveled >= this.distanceToTarget) {
+            createParticles(this.tx, this.ty);
+            fireworks.splice(index, 1);
+        } else {
+            this.x += vx;
+            this.y += vy;
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.moveTo(this.coordinates[this.coordinates.length - 1][0],
+                   this.coordinates[this.coordinates.length - 1][1]);
+        ctx.lineTo(this.x, this.y);
+        ctx.strokeStyle = `hsl(${Math.random()*360}, 100%, ${this.brightness}%)`;
+        ctx.stroke();
+    }
+}
+
+/* Particle constructor */
+class Particle {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.coordinates = [];
+        this.coordinateCount = 5;
+        while (this.coordinateCount--) {
+            this.coordinates.push([this.x, this.y]);
+        }
+        this.angle = Math.random() * Math.PI * 2;
+        this.speed = Math.random() * 10 + 1; // min 1, max ~11
+        this.friction = 0.95;
+        this.gravity = 0.7;
+        this.hue = Math.random() * 360;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.03 + 0.015; // 0.015-0.045
+    }
+    update(index) {
+        this.coordinates.pop();
+        this.coordinates.unshift([this.x, this.y]);
+
+        this.speed *= this.friction;
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed + this.gravity;
+        this.alpha -= this.decay;
+
+        if (this.alpha <= this.decay) {
+            particles.splice(index, 1);
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.moveTo(this.coordinates[this.coordinates.length - 1][0],
+                   this.coordinates[this.coordinates.length - 1][1]);
+        ctx.lineTo(this.x, this.y);
+        ctx.strokeStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
+        ctx.stroke();
+    }
+}
+
+/* create explosion particles */
+function createParticles(x, y) {
+    let count = 80; // how many sparks
+    while (count--) {
+        particles.push(new Particle(x, y));
+    }
+}
+
+/* animation loop */
+function loop() {
+    requestAnimationFrame(loop);
+
+    // slightly clear with opacity to create trailing effect
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.globalCompositeOperation = 'lighter';
+
+    // draw fireworks
+    fireworks.forEach((fw, i) => {
+        fw.draw();
+        fw.update(i);
+    });
+
+    // draw particles
+    particles.forEach((p, i) => {
+        p.draw();
+        p.update(i);
+    });
+}
+
+/* periodically launch random fireworks */
+function initFireworks() {
+    loop();
+    setInterval(() => {
+        // random start x along bottom
+        let sx = Math.random() * cw;
+        let sy = ch;
+        // random target location in upper half
+        let tx = Math.random() * cw;
+        let ty = Math.random() * ch * 0.5;
+        fireworks.push(new Firework(sx, sy, tx, ty));
+    }, 800); // every 0.8s
+}
+</script>
+
+</body>
+</html>
